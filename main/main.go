@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var INDEX int64 = 0   		// token的开始（包括
+var INDEX int64 = 0 // token的开始（包括
 const FileName = "test.c"
 
 var KEYWORDS = []string{"if", "do", "int", "for",
@@ -19,39 +19,39 @@ var KEYWORDS = []string{"if", "do", "int", "for",
 
 const (
 	// 关键字
-	TOEKN_KEYWORD	= iota
+	TOEKN_KEYWORD = iota
 
 	// 运算符
 	TOKEN_OPERATION
 	/*
-	- 算术运算符 ++ --
-	- 关系运算符 == >= <= !=
-	- 逻辑运算符 && ||
-	- 位操作运算符 << >>
-	- 赋值运算符 += -= *= /= %= &= |= ^= >>= <<=
-	- 条件运算符 ?:
-	- 逗号运算符
-	- 指针运算符
-	- 特殊运算符 () [] → .
-	- 单运算符 + - * / % > < ! & | ~ ^ = , &
+		- 算术运算符 ++ --
+		- 关系运算符 == >= <= !=
+		- 逻辑运算符 && ||
+		- 位操作运算符 << >>
+		- 赋值运算符 += -= *= /= %= &= |= ^= >>= <<=
+		- 条件运算符 ?:
+		- 逗号运算符
+		- 指针运算符
+		- 特殊运算符 () [] → .
+		- 单运算符 + - * / % > < ! & | ~ ^ = , &
 	*/
 
-	TOKEN_STRING					// 字符串
+	TOKEN_STRING // 字符串
 
 	// 标识符
-	TOKEN_ID 						// 标识符 变量名、函数名、宏名、结构体名等，由字母、数字、下划线组成，并且首字符必须为字母或下划线
+	TOKEN_ID // 标识符 变量名、函数名、宏名、结构体名等，由字母、数字、下划线组成，并且首字符必须为字母或下划线
 
 	// 无符号数
-	TOKEN_NUMBER					// 无符号数 整数，
+	TOKEN_NUMBER // 无符号数 整数，
 
 )
 
 type Token struct {
-	Type	 int
-	Len 	 int
-	Line	 int
+	Type int
+	Len  int
+	Line int
 
-	Desc	 string // 描述
+	Desc string // 描述
 }
 
 func main() {
@@ -83,7 +83,9 @@ func main() {
 		tokens = append(tokens, token)
 	}
 
-	print(tokens)
+	for _, token := range tokens {
+		fmt.Println(token.Desc)
+	}
 }
 
 // Next 将code中index指向的字符及其之后的若干个字符转换为Token，index为要读取的第一个字符的索引
@@ -155,9 +157,27 @@ func Next(code string, index int64) Token {
 		如果第一个字符为单运算符
 	*/
 	if IsSingle(code[index : index+1]) {
- 		types = TOKEN_OPERATION
- 		length = 1
- 		desc = "运算符：" + code[index : index+1]
+		types = TOKEN_OPERATION
+		length = 1
+		desc = "运算符：" + code[index:index+1]
+	}
+
+	/*
+		如果第一个字符为 " , 则表示为字符串
+	*/
+	if code[index:index+1] == "\"" {
+		strReg := regexp.MustCompile(`^"\S*\S*"`)
+		if strReg == nil {
+			fmt.Println("regexp err")
+		}
+		result := strReg.FindAllString(code[index:], 1)
+		if len(result) != 0 {
+			types = TOKEN_STRING
+			length = len(result[0])
+			desc = "字符串：" + result[0]
+		} else {
+			panic(nil)
+		}
 	}
 
 	INDEX += int64(length)
