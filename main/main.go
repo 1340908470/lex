@@ -96,6 +96,20 @@ func Next(code string, index int64) Token {
 	desc := ""
 
 	/*
+		如果判定为注释，则index直接后移至注释结束
+	*/
+	if IsAnnotation(code[index : index+2]) {
+		anoReg := regexp.MustCompile(`\/\/.*\n`)
+		if anoReg == nil {
+			fmt.Println("regexp err")
+		}
+		result := anoReg.FindAllString(code[index:], 1)
+		if len(result) != 0 {
+			index += int64(len(result[0]))
+		}
+	}
+
+	/*
 		如果第一个字符为字母，则有可能为：
 		- 关键字
 		- 标识符
@@ -154,27 +168,43 @@ func Next(code string, index int64) Token {
 	}
 
 	/*
-		如果第一个字符为单运算符
+		如果判定为运算符
 	*/
-	if IsSingle(code[index : index+1]) {
-		types = TOKEN_OPERATION
-		length = 1
-		desc = "运算符：" + code[index:index+1]
+	if IsOperation(code[index : index+2]) {
+		OperReg := regexp.MustCompile(`\>=|\<=|!=|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|>>=|<<=|\+\+|\-\-|==|&&|\+|\-|\*|\\|&|%|<|>|!|\||~|\^|,|\.|\|\||>>|<<|\?|:|\(|\)|\[|\]|\{|\}|;`)
+		if OperReg == nil {
+			fmt.Println("regexp err")
+		}
+		result := OperReg.FindAllString(code[index:], 1)
+		if len(result) != 0 {
+			types = TOKEN_OPERATION
+			length = len(result[0])
+			desc = "运算符：" + result[0]
+		} else {
+			panic(nil)
+		}
 	}
 
 	/*
 		如果第一个字符为 " , 则表示为字符串
 	*/
 	if code[index:index+1] == "\"" {
-		strReg := regexp.MustCompile(`^"\S*\S*"`)
+		codeStr := code[index:]
+		// 因为字符串对于引号的匹配是非贪婪的，因此为了在非贪婪模式下略过 \" 的情况，需要先对 \" 进行转换，先将其替换为 ~~，搜索完毕后再换回来
+		codeStr = strings.Replace(codeStr, "\\\"", "~~~~~", -1)
+
+		strReg := regexp.MustCompile(`^".*?"`)
 		if strReg == nil {
 			fmt.Println("regexp err")
 		}
-		result := strReg.FindAllString(code[index:], 1)
+		result := strReg.FindAllString(codeStr, 1)
+
 		if len(result) != 0 {
+			// 将 result[0] 中的 ~~ 换回 \"
+			resultStr := strings.Replace(result[0], "~~~~~", "\\\"", -1)
 			types = TOKEN_STRING
-			length = len(result[0])
-			desc = "字符串：" + result[0]
+			length = len(resultStr)
+			desc = "字符串：" + resultStr
 		} else {
 			panic(nil)
 		}
@@ -199,11 +229,24 @@ func IsNum(s string) bool {
 	return s >= "0" && s <= "9"
 }
 
-// IsSingle 是否为单运算符
-func IsSingle(s string) bool {
+func IsAnnotation(str string) bool {
+	if str[0:2] == "/*" || str[0:2] == "//" {
+		return true
+	} else {
+		return false
+	}
+}
+
+// IsOperation 是否为运算符
+func IsOperation(str string) bool {
+	s := str[0:1]
 	if s == "(" || s == ")" || s == "[" || s == "]" || s == "{" || s == "}" || s == "," ||
 		s == "+" || s == "-" || s == "*" || s == "/" || s == ">" || s == "<" || s == "!" ||
 		s == "&" || s == "|" || s == "~" || s == "^" || s == "=" || s == ";" {
+		// 对于 / 号，需要特殊考虑注释的情况
+		if str[0:2] == "/*" || str[0:2] == "//" {
+			return false
+		}
 		return true
 	} else {
 		return false
