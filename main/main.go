@@ -23,27 +23,14 @@ const (
 
 	// 运算符
 	TOKEN_OPERATION
-	/*
-		- 算术运算符 ++ --
-		- 关系运算符 == >= <= !=
-		- 逻辑运算符 && ||
-		- 位操作运算符 << >>
-		- 赋值运算符 += -= *= /= %= &= |= ^= >>= <<=
-		- 条件运算符 ?:
-		- 逗号运算符
-		- 指针运算符
-		- 特殊运算符 () [] → .
-		- 单运算符 + - * / % > < ! & | ~ ^ = , &
-	*/
 
 	TOKEN_STRING // 字符串
 
 	// 标识符
 	TOKEN_ID // 标识符 变量名、函数名、宏名、结构体名等，由字母、数字、下划线组成，并且首字符必须为字母或下划线
 
-	// 无符号数
+	// 数字
 	TOKEN_NUMBER // 无符号数 整数，
-
 )
 
 type Token struct {
@@ -74,7 +61,7 @@ func main() {
 		if INDEX >= int64(len(code)) {
 			break
 		}
-		if code[INDEX:INDEX+1] == " " || code[INDEX:INDEX+1] == "\r" || code[INDEX:INDEX+1] == "\n" {
+		if code[INDEX:INDEX+1] == " " || code[INDEX:INDEX+1] == "\r" || code[INDEX:INDEX+1] == "\n" || code[INDEX:INDEX+1] == "\t" {
 			INDEX++
 			continue
 		}
@@ -98,7 +85,7 @@ func Next(code string, index int64) Token {
 	/*
 		如果判定为注释，则index直接后移至注释结束
 	*/
-	if IsAnnotation(code[index : index+2]) {
+	for len(code[index:]) > 1 && IsAnnotation(code[index:index+2]) {
 		anoReg := regexp.MustCompile(`\/\/.*\n`)
 		if anoReg == nil {
 			fmt.Println("regexp err")
@@ -106,7 +93,13 @@ func Next(code string, index int64) Token {
 		result := anoReg.FindAllString(code[index:], 1)
 		if len(result) != 0 {
 			index += int64(len(result[0]))
+			INDEX += int64(len(result[0]))
 		}
+	}
+
+	for code[index:index+1] == " " || code[index:index+1] == "\r" || code[index:index+1] == "\n" || code[index:index+1] == "\t" {
+		index++
+		INDEX++
 	}
 
 	/*
@@ -153,7 +146,7 @@ func Next(code string, index int64) Token {
 	*/
 	if IsNum(code[index : index+1]) {
 		// 匹配规则：数字开始，小数点可选，
-		numReg := regexp.MustCompile(`^(\d[0-9]*.?[0-9]+E?[0-9]+)|(0x[0-8]+)|(0b[0-1]+)`)
+		numReg := regexp.MustCompile(`([0-9]+\.?[0-9]*(e|E)-?[0-9]+)|([0-9]*\.?[0-9]+(e|E)[0-9]+)|([0-9]+\.[0-9]*)|([0-9]*\.[0-9]+)|(0(x|X)[0-7]+)|(-?0(b|B)[0-1]+)|([0-9]+)`)
 		if numReg == nil {
 			fmt.Println("regexp err")
 		}
@@ -170,8 +163,8 @@ func Next(code string, index int64) Token {
 	/*
 		如果判定为运算符
 	*/
-	if IsOperation(code[index : index+2]) {
-		OperReg := regexp.MustCompile(`\>=|\<=|!=|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|>>=|<<=|\+\+|\-\-|==|&&|\+|\-|\*|\\|&|%|<|>|!|\||~|\^|,|\.|\|\||>>|<<|\?|:|\(|\)|\[|\]|\{|\}|;`)
+	if (len(code[index:]) > 1 && IsOperation(code[index:index+2])) || IsOperation(code[index:index+1]) {
+		OperReg := regexp.MustCompile(`\>=|\<=|!=|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|>>=|<<=|\+\+|\-\-|->|==|=|&&|\+|\-|\*|\\|&|%|<|>|!|\||~|\^|,|\.|\|\||>>|<<|\?|:|\(|\)|\[|\]|\{|\}|;`)
 		if OperReg == nil {
 			fmt.Println("regexp err")
 		}
@@ -242,9 +235,9 @@ func IsOperation(str string) bool {
 	s := str[0:1]
 	if s == "(" || s == ")" || s == "[" || s == "]" || s == "{" || s == "}" || s == "," ||
 		s == "+" || s == "-" || s == "*" || s == "/" || s == ">" || s == "<" || s == "!" ||
-		s == "&" || s == "|" || s == "~" || s == "^" || s == "=" || s == ";" {
+		s == "&" || s == "|" || s == "~" || s == "^" || s == "=" || s == "%" || s == ";" {
 		// 对于 / 号，需要特殊考虑注释的情况
-		if str[0:2] == "/*" || str[0:2] == "//" {
+		if len(str) > 1 && (str[0:2] == "/*" || str[0:2] == "//") {
 			return false
 		}
 		return true
